@@ -7,7 +7,7 @@ namespace grain_growth
 {
     public class Functions
     {
-        private const int MAX_GRAIN_ID = 150; 
+        private const int MAX_GRAIN_ID = 200; 
         public int Width { set; get; }
         public int Height { set; get; }
         protected Grid grid;
@@ -91,6 +91,7 @@ namespace grain_growth
                         this.grid.CurrentCell.NewID = this.idForSelectedGrain.Value;
                     }
                 }
+              
             } while (this.grid.Next());
         }
     
@@ -180,7 +181,6 @@ namespace grain_growth
             }
         }
 
-       
         protected void AddInclusion(int x, int y)
         {
             Cell c = this.grid.GetCell(x, y);

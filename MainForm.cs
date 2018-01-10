@@ -15,7 +15,7 @@ namespace grain_growth
 {
     public partial class MainForm : Form
     {
-  
+
         private int GridWidth
         {
             get { return (int)this.gridWidthNumericUpDown.Value; }
@@ -36,17 +36,72 @@ namespace grain_growth
             get { return (int)this.inclusionRadiusNumericUpDown.Value; }
         }
 
+
         private int CAGrians
         {
             get { return (int)this.caGrainsNumericUpDown.Value; }
         }
 
-      
+        private int MCGrians
+        {
+            get { return (int)this.numericUpDown1.Value; }
+        }
+
+        private int MCSteps
+        {
+            get { return (int)this.numericUpDown2.Value; }
+        }
+
+        private double SrxEnergyValue
+        {
+            get { return (double)this.srxEnergyUpDown.Value; }
+        }
+
+        private int SrxNucleationsAtStart
+        {
+            get { return (int)this.srxNucleationsAtStartUpDown.Value; }
+        }
+
+        private int addEveryStep
+        {
+            get { return (int)this.aesUpDown.Value; }
+        }
+
+        private int SrxAddTimes
+        {
+            get
+            {
+                    return (int)this.srxAddTimesUpDown.Value;
+               
+            }
+        }
+
+        private int SrxSteps
+        {
+            get { return (int)this.srxStepsUpDown.Value; }
+        }
+
+        private bool SrxHighlightRecrystalized
+        {
+            get { return this.srxHighlightRecrystalizedCB.Checked; }
+        }
+
+        private bool SrxHighlightEnergy
+        {
+            get { return this.EnergycheckBox.Checked; }
+        }
+
+        private bool HighlightBound
+        {
+            get { return this.checkBox1.Checked; }
+        }
 
 
 
         private Grid grid;
         private CA ca;
+        private MC mc;
+        private SRX srx;
 
         private List<Brush> brushes;
         private Dictionary<Button, ButtonEvts> stateButtons;
@@ -55,36 +110,37 @@ namespace grain_growth
         public MainForm()
         {
             this.ca = new CA();
+            this.mc = new MC();
+            this.srx = new SRX();
 
             InitializeComponent();
             this.SetupUI();
             this.SetupBrushes();
             this.SetupGrid();
             this.SetupStateButtons();
-
-   
         }
 
-        private void SetupUI()
+        public void SetupUI()
         {
             this.caNeighborhoodComboBox.SelectedIndex = 0;
-
+            this.mcNeighborhoodComboBox.SelectedIndex = 0;
+            this.edComboBox.SelectedIndex = 0;
+            this.srxNucleationsAdditionsCB.SelectedIndex = 0;
         }
-
 
         private void girdProperties_Changed(object sender, EventArgs e)
         {
             this.SetupGrid();
             this.SetupPB();
+
         }
-
-
 
         private void SetupGrid()
         {
             this.grid = new Grid(this.GridWidth, this.GridHeight, this.GridPeriodic);
             this.ca.Grid = this.grid;
-
+            this.mc.Grid = this.grid;
+            this.srx.Grid = this.grid;
             this.SetupPB();
         }
 
@@ -102,7 +158,7 @@ namespace grain_growth
             this.brushes.Add(Brushes.Black);
 
             this.brushes.AddRange(typeof(Brushes).GetProperties().Where(p => p.Name != "Black").Select(p => p.GetValue(null, null) as Brush).OrderBy(p => Rand.Next()));
-           
+
             this.brushes.Insert(0, Brushes.Black);
 
 
@@ -114,14 +170,13 @@ namespace grain_growth
 
             this.stateButtons.Add(this.inclusionCircleButton, new ButtonEvts { PBClick = AddCircleInclusion });
             this.stateButtons.Add(this.inclusionSquareButton, new ButtonEvts { PBClick = AddSquareInclusion });
-            this.stateButtons.Add(this.dpButton, new ButtonEvts { PBClick = SelectGrain, On = SelectGrain_Start_DP, Off = SelectGrain_End } );
+            this.stateButtons.Add(this.dpButton, new ButtonEvts { PBClick = SelectGrain, On = SelectGrain_Start_DP, Off = SelectGrain_End });
             this.stateButtons.Add(this.subButton, new ButtonEvts { PBClick = SelectGrain, On = SelectGrain_Start_SUB, Off = SelectGrain_End });
-          //  this.stateButtons.Add(this.OGBound, new ButtonEvts { PBClick = SelectGrain_Bound, On = SelectGrain_Start_DP, Off = SelectGrain_End });
+           
         }
 
         private void PB_Paint(object sender, PaintEventArgs e)
         {
-            // e.Graphics.Clear(Color.White);
 
             for (int y = 0; y < this.grid.Height; ++y)
             {
@@ -132,13 +187,44 @@ namespace grain_growth
                     if (c.ID != 0)
                     {
 
-                       e.Graphics.FillRectangle((c.Filled) ? Brushes.Magenta : this.brushes[c.ID], x, y, 1, 1);
+                        e.Graphics.FillRectangle((c.Recrystalized && this.SrxHighlightRecrystalized) ? Brushes.Red : this.brushes[c.ID], x, y, 1, 1);
                     }
+                    if (c.ID > 1 && c.MoorNeighborhood.Count(i => i.ID != c.ID) > 0)
+                    {
+                        e.Graphics.FillRectangle((c.Recrystalized && this.SrxHighlightRecrystalized) ? Brushes.Black : this.brushes[c.ID], x, y, 1, 1);
+                    }
+                    if (c.ID > 1 && c.MoorNeighborhood.Count(i => i.ID != c.ID) > 0) {
+                        e.Graphics.FillRectangle((this.HighlightBound) ? Brushes.Black : this.brushes[c.ID], x, y, 1, 1);
+                    }
+
+
+                    if (EnergycheckBox.Checked )
+                    {
+                        if (c.Energy == (int)this.srxEnergyUpDown.Value && c.Energy > 0 && this.edComboBox.SelectedIndex == 0)
+                        {
+                            e.Graphics.FillRectangle((this.SrxHighlightEnergy) ? Brushes.Blue : this.brushes[c.ID], x, y, 1, 1);
+                        }
+
+                        if (c.ID > 1 && c.MoorNeighborhood.Count(i => i.ID != c.ID) > 0 && c.Energy == (int)this.srxEnergyUpDown.Value && this.edComboBox.SelectedIndex == 1)
+                        {
+                            e.Graphics.FillRectangle((this.SrxHighlightEnergy) ? Brushes.GreenYellow : this.brushes[c.ID], x, y, 1, 1);
+
+                        }
+                        else if (c.Energy < (int)this.srxEnergyUpDown.Value)
+                        {
+                            e.Graphics.FillRectangle((this.SrxHighlightEnergy) ? Brushes.Blue : this.brushes[c.ID], x, y, 1, 1);
+                        }
+                         if (c.Energy == 0)
+                        {
+                            e.Graphics.FillRectangle((this.SrxHighlightEnergy) ? Brushes.Red : this.brushes[c.ID], x, y, 1, 1);
+                        }
+                    }
+                
                 }
             }
         }
 
-    //################################################################
+        //################################################################
         private void PB_Click(object sender, EventArgs e)
         {
             MouseEventArgs me = (MouseEventArgs)e;
@@ -146,7 +232,7 @@ namespace grain_growth
             int x = me.X;
             int y = me.Y;
 
-   
+
             if (this.activeStateButton != null && this.stateButtons.ContainsKey(this.activeStateButton) && this.stateButtons[this.activeStateButton].PBClick != null)
             {
                 this.stateButtons[this.activeStateButton].PBClick(x, y);
@@ -164,27 +250,22 @@ namespace grain_growth
 
             Button clickedButton = sender as Button;
 
-            // Off logic for prevoius button 
             if (this.activeStateButton != null && this.stateButtons.ContainsKey(this.activeStateButton) && this.stateButtons[this.activeStateButton].Off != null)
             {
                 this.stateButtons[this.activeStateButton].Off();
             }
 
-            // Click in different button
             if (this.activeStateButton != clickedButton)
             {
                 this.activeStateButton = clickedButton;
                 clickedButton.BackColor = Color.Green;
                 clickedButton.ForeColor = SystemColors.HighlightText;
 
-                // On logic
                 if (this.activeStateButton != null && this.stateButtons.ContainsKey(this.activeStateButton) && this.stateButtons[this.activeStateButton].On != null)
                 {
                     this.stateButtons[this.activeStateButton].On();
                 }
             }
-
-            // Unclick active button
             else
             {
                 this.activeStateButton = null;
@@ -193,13 +274,12 @@ namespace grain_growth
 
         private void AddCircleInclusion(int x, int y)
         {
-            // Method from AlgorithmBase
+         
             this.ca.AddCircleInclusion(x, y, this.InclusionRadius);
         }
 
         private void AddSquareInclusion(int x, int y)
         {
-            // Method from AlgorithmBase
             this.ca.AddSquareInclusion(x, y, this.InclusionRadius); ;
         }
 
@@ -219,11 +299,7 @@ namespace grain_growth
             this.ca.SelectGrain(x, y);
             this.PB.Refresh();
         }
-        private void SelectGrain_Bound(int x, int y)
-        {
-            this.ca.SelectGrainBoundary(x, y);
-            this.PB.Refresh();
-        }
+
 
         private void SelectGrain_End()
         {
@@ -231,7 +307,6 @@ namespace grain_growth
             this.PB.Refresh();
         }
 
-       
 
         //###############################################################
 
@@ -339,10 +414,10 @@ namespace grain_growth
             }
 
         }
-       
 
 
-    private void ImportTXT_Click(object sender, EventArgs e)
+
+        private void ImportTXT_Click(object sender, EventArgs e)
         {
             Graphics g = this.PB.CreateGraphics();
             int i = 0;
@@ -381,12 +456,12 @@ namespace grain_growth
 
                                 if (Convert.ToInt32(lines[j]) != 0)
                                 {
-                                   g.FillRectangle((c.Selected) ? Brushes.Red : this.brushes[Convert.ToInt32(lines[j])], x, y, 1, 1);
+                                    g.FillRectangle((c.Selected) ? Brushes.Red : this.brushes[Convert.ToInt32(lines[j])], x, y, 1, 1);
                                 }
                                 j++;
                             }
                         }
-                        
+
                     }
                 }
 
@@ -398,5 +473,131 @@ namespace grain_growth
 
         }
 
+        private void mcInitRandomGrainsButton_Click(object sender, EventArgs e)
+        {
+            this.mc.Init(this.MCGrians);
+            this.PB.Refresh();
+        }
+
+        private void MCSimulateButton_Click(object sender, EventArgs e)
+        {
+            for (int i = 0; i < this.MCSteps; ++i)
+            {
+                this.mc.Step();
+                this.PB.Refresh();
+            }
+        }
+
+        public void button1_Click_1(object sender, EventArgs e)
+        {
+            if (this.edComboBox.SelectedIndex == 0)
+            {
+              //  this.srx.AddEnergy(this.SrxEnergyValue);
+
+                int nucleationsToAdd = this.SrxNucleationsAtStart;
+                int addCount = 0;
+
+                for (int i = 0; i < this.SrxSteps; ++i)
+                {
+                    if (i % this.addEveryStep == 0 && addCount++ < this.SrxAddTimes) 
+                    {
+                        this.srx.AddNucleations(nucleationsToAdd);
+                        this.PB.Refresh();
+
+                        if (this.srxNucleationsAdditionsCB.SelectedIndex == 2)
+                        {
+                            nucleationsToAdd += 2; //diff = 2
+                        }
+
+                        else if (this.srxNucleationsAdditionsCB.SelectedIndex == 3)
+                        {
+                            nucleationsToAdd -= 2; //diff=2
+                        }
+                    }
+
+                    this.srx.Step();
+                    this.PB.Refresh();
+                }
+            }
+
+            else
+            {
+              //  this.srx.AddEnergyBound(this.SrxEnergyValue);
+
+                int nucleationsToAdd = this.SrxNucleationsAtStart;
+                int addCount = 0;
+
+                for (int i = 0; i < this.SrxSteps; ++i)
+                {
+                    if (i % this.addEveryStep == 0 && addCount++ < this.SrxAddTimes) 
+                    {
+                        this.srx.AddNucleationsOnBound(nucleationsToAdd);
+                        this.PB.Refresh();
+
+                        if (this.srxNucleationsAdditionsCB.SelectedIndex == 2)
+                        {
+                            nucleationsToAdd += 2; //diff = 2
+                            
+                        }
+
+                        else if (this.srxNucleationsAdditionsCB.SelectedIndex == 3)
+                        {
+                            nucleationsToAdd -= 2; //diff=2
+                        }
+                    }
+
+                    this.srx.Step();
+                    this.PB.Refresh();
+                }
+            }
+
+        }
+
+
+        private void button1_Click_2(object sender, EventArgs e)
+        {
+           
+        }
+
+
+        private void label16_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void srxHighlightRecrystalizedCB_CheckedChanged_1(object sender, EventArgs e)
+        {
+            this.PB.Refresh();
+        }
+
+        private void groupBox5_Enter(object sender, EventArgs e)
+        {
+
+        }
+
+        private void EnergycheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            this.PB.Refresh();
+        }
+
+        private void addEnergyButton_Click(object sender, EventArgs e)
+        {
+            if (this.edComboBox.SelectedIndex == 0)
+            {
+                 this.srx.AddEnergy(this.SrxEnergyValue);
+                this.PB.Refresh();
+
+            }
+            else {
+                this.srx.AddEnergyBound(this.SrxEnergyValue);
+                this.PB.Refresh();
+            }
+        }
+
+        private void checkBox1_CheckedChanged(object sender, EventArgs e)
+        {
+        
+            this.PB.Refresh();
+        }
     }
 }

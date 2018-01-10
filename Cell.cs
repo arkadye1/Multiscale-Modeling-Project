@@ -8,19 +8,20 @@ namespace grain_growth
     public class Cell
     {
 
-        /// 0  - null,  1  - inclusion. >1 - grain
+    
         public int ID { set; get; }
-
-        /// For store new id
+        
         public int NewID { set; get; }
        
         public bool Selected { set; get; }
 
         public bool Filled { set; get; }
 
-
-        /// Neighbors starts N->NW->W
         public Cell[] Neighbors { set; get; }
+
+        public bool Recrystalized { set; get; }
+
+        public double Energy { set; get; }
 
         public Cell() : this(0)
         {
